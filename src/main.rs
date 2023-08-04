@@ -61,6 +61,9 @@ async fn main() {
             SwarmEvent::Behaviour(MyBehaviourEvent::Rendezvous(rendezvous::server::Event::PeerRegistered { peer, registration },)) => {
                 log::info!("Peer {} registered for namespace {:?}", peer, registration.namespace);
             }
+            SwarmEvent::Behaviour(MyBehaviourEvent::Rendezvous(rendezvous::server::Event::DiscoverServed { enquirer, registrations, },)) => {
+                log::info!("Served peer {} with registrations {:?}", enquirer, registrations.len());
+            }
             other => {
                 log::info!("Swarm event: {:?}", other);
             }
