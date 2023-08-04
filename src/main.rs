@@ -55,6 +55,12 @@ async fn main() {
             SwarmEvent::ConnectionEstablished { peer_id, .. } => {
                 log::info!("Connection established with {}", peer_id);
             }
+            SwarmEvent::ConnectionClosed { peer_id, .. } => {
+                log::info!("Connection with {} closed", peer_id);
+            }
+            SwarmEvent::Behaviour(MyBehaviourEvent::Rendezvous(rendezvous::server::Event::PeerRegistered { peer, registration },)) => {
+                log::info!("Peer {} registered for namespace {:?}", peer, registration.namespace);
+            }
             other => {
                 log::info!("Swarm event: {:?}", other);
             }
