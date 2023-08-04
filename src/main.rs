@@ -95,7 +95,7 @@ async fn main() {
             }
             SwarmEvent::Behaviour(MyBehaviourEvent::Mdns(mdns::Event::Expired(list))) => {
                 for (peer_id, _multiaddr) in list {
-                    println!("mDNS discover peer has expired: {peer_id}");
+                    log::info!("mDNS discover peer has expired: {}", peer_id);
                     swarm.behaviour_mut().gossipsub.remove_explicit_peer(&peer_id);
                 }
             }
