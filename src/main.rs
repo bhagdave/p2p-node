@@ -43,7 +43,23 @@ async fn main() {
                 keep_alive: keep_alive::Behaviour,
             },
             local_peer_id,
-        ).build();
+    ).build();
+
+    // Listen on specific port for incoming connections
+    let _ = swarm.listen_on("/ip4/0.0.0.0/tcp/62649".parse().unwrap());
+    log::info!("Listening on port 62649");
+
+    // Lets catch the swarm events
+    while let Some(event) = swarm.next().await {
+        match event {
+            SwarmEvent::ConnectionEstablished { peer_id, .. } => {
+                log::info!("Connection established with {}", peer_id);
+            }
+            other => {
+                log::info!("Swarm event: {:?}", other);
+            }
+        }
+    }
 }
 
 #[derive(NetworkBehaviour)]
