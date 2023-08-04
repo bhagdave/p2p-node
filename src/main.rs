@@ -4,6 +4,7 @@
  * 
 */
 use futures::StreamExt;
+use std::collections::hash_map::DefaultHasher;
 use libp2p::{
     core::transport::upgrade::Version,
     identify,
@@ -12,12 +13,15 @@ use libp2p::{
     ping,
     rendezvous,
     swarm::{keep_alive, NetworkBehaviour, SwarmEvent, SwarmBuilder},
+    gossipsub,
+    mdns,
     tcp,
     yamux,
     PeerId,
     Transport,
 };
 use std::time::Duration;
+use std::hash::{Hash, Hasher};
 
 #[tokio::main]
 async fn main() {
@@ -33,6 +37,22 @@ async fn main() {
     log::info!("Local peer id: {:?}", local_peer_id);
     println!("Local peer id: {:?}", local_peer_id);
 
+    // Setup the gossipsub configuration
+    let gossipsub_config = gossipsub::ConfigBuilder::default()
+        .heartbeat_interval(Duration::from_secs(10))
+        .validation_mode(gossipsub::ValidationMode::Strict)
+        .message_id_fn(|message: &gossipsub::Message| {
+            let mut s = DefaultHasher::new();
+            message.data.hash(&mut s);
+            gossipsub::MessageId::from(s.finish().to_string())
+        }).build().expect("Valid config");
+
+    // Setup gossipsub
+    let mut gossipsub = gossipsub::Behaviour::new(gossipsub::MessageAuthenticity::Signed(local_key.clone()), gossipsub_config).expect("Correct config");
+
+    // setup mdns
+    let mdns = mdns::async_io::Behaviour::new(mdns::Config::default(), local_peer_id).expect("Correct config");
+
     // Create the swarm
     let mut swarm = SwarmBuilder::with_tokio_executor(
             tcp::tokio::Transport::default().upgrade(Version::V1Lazy).authenticate(noise::Config::new(&local_key).unwrap()).multiplex(yamux::Config::default()).boxed(),
@@ -41,6 +61,8 @@ async fn main() {
                 rendezvous: rendezvous::server::Behaviour::new(rendezvous::server::Config::default()),
                 ping: ping::Behaviour::new(ping::Config::new().with_interval(Duration::from_secs(1))),
                 keep_alive: keep_alive::Behaviour,
+                gossipsub,
+                mdns,
             },
             local_peer_id,
     ).build();
@@ -77,4 +99,6 @@ struct MyBehaviour {
     rendezvous: rendezvous::server::Behaviour,
     ping: ping::Behaviour,
     keep_alive: keep_alive::Behaviour,
+    gossipsub: gossipsub::Behaviour,
+    mdns: mdns::async_io::Behaviour,
 }
