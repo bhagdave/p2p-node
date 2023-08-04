@@ -17,9 +17,10 @@ use std::time::Duration;
 #[tokio::main]
 async fn main() {
     env_logger::init();
+    let version = option_env!("CARGO_PKG_VERSION").unwrap_or("unknown");
 
     // Welcome messages and info
-    log::info!("Starting p2p rendezvous server - v0.1.0");
+    log::info!("Starting p2p rendezvous server - {}", version);
 
     // Generate a random PeerId
     let local_key = identity::Keypair::generate_ed25519();
