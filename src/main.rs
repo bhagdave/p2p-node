@@ -28,14 +28,12 @@ async fn main() {
     env_logger::init();
 
     // Welcome messages and info
-    log::info!("Starting p2p rendezvous server");
-    println!("p2p rendezvous server - v0.1.0");
+    log::info!("Starting p2p rendezvous server - v0.1.0");
 
     // Generate a random PeerId
     let local_key = identity::Keypair::generate_ed25519();
     let local_peer_id = PeerId::from(local_key.public());
     log::info!("Local peer id: {:?}", local_peer_id);
-    println!("Local peer id: {:?}", local_peer_id);
 
     // Setup the gossipsub configuration
     let gossipsub_config = gossipsub::ConfigBuilder::default()
@@ -85,6 +83,28 @@ async fn main() {
             }
             SwarmEvent::Behaviour(MyBehaviourEvent::Rendezvous(rendezvous::server::Event::DiscoverServed { enquirer, registrations, },)) => {
                 log::info!("Served peer {} with registrations {:?}", enquirer, registrations.len());
+            }
+            SwarmEvent::NewListenAddr { address, .. } => {
+                log::info!("p2p-rendezvous server listening on: {}", address);
+            }
+            SwarmEvent::Behaviour(MyBehaviourEvent::Mdns(mdns::Event::Discovered(list))) => {
+                for (peer_id, _multiaddr) in list {
+                    log::info!("mDNS discovered a new peer: {}", peer_id);
+                    swarm.behaviour_mut().gossipsub.add_explicit_peer(&peer_id);
+                }
+            }
+            SwarmEvent::Behaviour(MyBehaviourEvent::Mdns(mdns::Event::Expired(list))) => {
+                for (peer_id, _multiaddr) in list {
+                    println!("mDNS discover peer has expired: {peer_id}");
+                    swarm.behaviour_mut().gossipsub.remove_explicit_peer(&peer_id);
+                }
+            }
+            SwarmEvent::Behaviour(MyBehaviourEvent::Gossipsub(gossipsub::Event::Message {
+                propagation_source: peer_id,
+                message_id: id,
+                message,
+            })) => {
+                log::info!("Got message: '{}' with id: {id} from peer: {peer_id}", String::from_utf8_lossy(&message.data),);
             }
             other => {
                 log::info!("Swarm event: {:?}", other);
