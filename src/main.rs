@@ -89,6 +89,8 @@ async fn main() {
 
     let mut stdin = InteractiveStdin::new();
 
+    println!("Add a message on the command line and press enter to send it to all peers");
+
     // Lets catch the swarm events
     loop {
         tokio::select! {
