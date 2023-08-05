@@ -95,7 +95,24 @@ async fn main() {
     loop {
         tokio::select! {
             line = stdin.next_line() => {
-                log::info!("Got line: {:?}", line);
+                log::info!("Publishing line: {:?}", line);
+                match line {
+                    Ok(line) => {
+                        match line {
+                            Some(line)  => {
+                                if let Err(e) = swarm.behaviour_mut().gossipsub.publish(topic.clone(), line.as_bytes()) {
+                                    log::error!("Failed to publish message: {:?}", e);
+                                }
+                            }
+                            None => {
+                                log::error!("Failed to read line");
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        log::error!("Failed to read line: {:?}", e);
+                    }
+                }
             },
             event = swarm.select_next_some() => match event {
                 SwarmEvent::ConnectionEstablished { peer_id, .. } => {
