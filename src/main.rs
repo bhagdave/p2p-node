@@ -14,6 +14,8 @@ use libp2p_quic as quic;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::time::Duration;
+use std::io::BufReader;
+use tokio::sync::mpsc;
 
 #[tokio::main]
 async fn main() {
@@ -158,4 +160,22 @@ struct MyBehaviour {
     keep_alive: keep_alive::Behaviour,
     gossipsub: gossipsub::Behaviour,
     mdns: mdns::async_io::Behaviour,
+}
+
+struct InteractiveStdin {
+    chan: mpsc::Receiver<std::io::Result<String>>,
+}
+
+impl InteractiveStdin {
+    fn new() -> Self {
+        let (send, recv) = mpsc::channel(16);
+        std::thread::spawn(move || {
+            for line in std::io::stdin().lines() {
+                if send.blocking_send(line).is_err() {
+                    return;
+                }
+            }
+        });
+        Self { chan: recv }
+    }
 }
