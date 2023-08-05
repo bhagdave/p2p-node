@@ -51,6 +51,10 @@ async fn main() {
     let mdns = mdns::async_io::Behaviour::new(mdns::Config::default(), local_peer_id)
         .expect("Correct config");
 
+    // Setup gossipsub topic
+    let topic = gossipsub::IdentTopic::new("p2p-node");
+    gossipsub.subscribe(&topic).unwrap();
+
     // setup tcp transport
     let tcp_transport = tcp::tokio::Transport::default()
         .upgrade(Version::V1Lazy)
