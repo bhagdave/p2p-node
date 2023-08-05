@@ -14,7 +14,6 @@ use libp2p_quic as quic;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::time::Duration;
-use std::io::BufReader;
 use tokio::sync::mpsc;
 
 #[tokio::main]
