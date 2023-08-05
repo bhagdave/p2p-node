@@ -10,6 +10,7 @@ use libp2p::{
     swarm::{keep_alive, NetworkBehaviour, SwarmBuilder, SwarmEvent},
     tcp, yamux, PeerId, Transport,
 };
+use libp2p_quic as quic;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::time::Duration;
@@ -50,13 +51,17 @@ async fn main() {
     let mdns = mdns::async_io::Behaviour::new(mdns::Config::default(), local_peer_id)
         .expect("Correct config");
 
+    // setup tcp transport
+    let tcp_transport = tcp::tokio::Transport::default()
+        .upgrade(Version::V1Lazy)
+        .authenticate(noise::Config::new(&local_key).unwrap())
+        .multiplex(yamux::Config::default())
+        .timeout(Duration::from_secs(20))
+        .boxed();
+
     // Create the swarm
     let mut swarm = SwarmBuilder::with_tokio_executor(
-        tcp::tokio::Transport::default()
-            .upgrade(Version::V1Lazy)
-            .authenticate(noise::Config::new(&local_key).unwrap())
-            .multiplex(yamux::Config::default())
-            .boxed(),
+        tcp_transport,
         MyBehaviour {
             identify: identify::Behaviour::new(identify::Config::new(
                 "p2p-rendezvous-server/0.1.0".into(),
