@@ -85,6 +85,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6b4930d2cb77ce62f89ee5d5289b4ac049559b1c45539271f5ed4fdc7db34545"
 
 [[package]]
+name = "arrayvec"
+version = "0.7.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "96d30a06541fbafbc7f82ed10c06164cfbd2c401138f6addd8404629c4b16711"
+
+[[package]]
 name = "asn1_der"
 version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -997,6 +1003,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "443144c8cdadd93ebf52ddb4056d257f5b52c04d3c804e657d19eb73fc33668b"
 
 [[package]]
+name = "hex"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
+
+[[package]]
 name = "hex_fmt"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1286,11 +1298,13 @@ dependencies = [
  "libp2p-gossipsub",
  "libp2p-identify",
  "libp2p-identity",
+ "libp2p-kad",
  "libp2p-mdns",
  "libp2p-metrics",
  "libp2p-noise",
  "libp2p-ping",
  "libp2p-rendezvous",
+ "libp2p-request-response",
  "libp2p-swarm 0.43.2",
  "libp2p-tcp",
  "libp2p-yamux",
@@ -1472,6 +1486,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "libp2p-kad"
+version = "0.44.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4f2584b0c27f879a1cca4b753fd96874109e5a2f46bd6e30924096456c2ba9b2"
+dependencies = [
+ "arrayvec",
+ "asynchronous-codec",
+ "bytes",
+ "either",
+ "fnv",
+ "futures",
+ "futures-timer",
+ "instant",
+ "libp2p-core 0.40.0",
+ "libp2p-identity",
+ "libp2p-swarm 0.43.2",
+ "log",
+ "quick-protobuf",
+ "rand 0.8.5",
+ "sha2 0.10.7",
+ "smallvec",
+ "thiserror",
+ "uint",
+ "unsigned-varint",
+ "void",
+]
+
+[[package]]
 name = "libp2p-mdns"
 version = "0.44.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1504,6 +1546,7 @@ dependencies = [
  "libp2p-gossipsub",
  "libp2p-identify",
  "libp2p-identity",
+ "libp2p-kad",
  "libp2p-ping",
  "libp2p-swarm 0.43.2",
  "once_cell",
@@ -3115,6 +3158,18 @@ dependencies = [
  "futures-lite",
  "libc",
  "socket2 0.4.9",
+]
+
+[[package]]
+name = "uint"
+version = "0.9.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "76f64bba2c53b04fcab63c01a7d7427eadc821e3bc48c34dc9ba29c501164b52"
+dependencies = [
+ "byteorder",
+ "crunchy",
+ "hex",
+ "static_assertions",
 ]
 
 [[package]]

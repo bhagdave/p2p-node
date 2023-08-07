@@ -8,6 +8,11 @@ use libp2p::{
     core::transport::upgrade::Version,
     gossipsub, identify, identity, mdns, noise, ping, rendezvous,
     swarm::{keep_alive, NetworkBehaviour, SwarmBuilder, SwarmEvent},
+    kad::{
+        self, record::store::MemoryStore, GetProvidersOk, Kademlia, KademliaEvent, QueryId,
+        QueryResult,
+    },
+    request_response::{self, ProtocolSupport, RequestId, ResponseChannel},
     tcp, yamux, PeerId, Transport,
 };
 use libp2p_quic as quic;
@@ -77,6 +82,10 @@ async fn main() {
             keep_alive: keep_alive::Behaviour,
             gossipsub,
             mdns,
+            kad: Kademlia::new(
+                local_peer_id.clone(),
+                MemoryStore::new(local_peer_id.clone()),
+            ),
         },
         local_peer_id,
     )
@@ -185,6 +194,7 @@ struct MyBehaviour {
     keep_alive: keep_alive::Behaviour,
     gossipsub: gossipsub::Behaviour,
     mdns: mdns::async_io::Behaviour,
+    kad: Kademlia<MemoryStore>,
 }
 
 struct InteractiveStdin {
