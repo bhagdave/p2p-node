@@ -14,12 +14,14 @@ use libp2p::{
     },
     request_response::{self, ProtocolSupport, RequestId, ResponseChannel},
     tcp, yamux, PeerId, Transport,
+    StreamProtocol
 };
 use libp2p_quic as quic;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::time::Duration;
 use tokio::sync::mpsc;
+use serde::{Deserialize, Serialize};
 
 #[tokio::main]
 async fn main() {
@@ -85,6 +87,13 @@ async fn main() {
             kad: Kademlia::new(
                 local_peer_id.clone(),
                 MemoryStore::new(local_peer_id.clone()),
+            ),
+            request_response: request_response::cbor::Behaviour::new(
+                [(
+                    StreamProtocol::new("/file-exchange/1"),
+                    ProtocolSupport::Full,
+                )],
+                request_response::Config::default(),
             ),
         },
         local_peer_id,
@@ -195,6 +204,7 @@ struct MyBehaviour {
     gossipsub: gossipsub::Behaviour,
     mdns: mdns::async_io::Behaviour,
     kad: Kademlia<MemoryStore>,
+    request_response: request_response::cbor::Behaviour<FileRequest, FileResponse>,
 }
 
 struct InteractiveStdin {
@@ -217,3 +227,9 @@ impl InteractiveStdin {
         self.chan.recv().await.transpose()
     }
 }
+
+// Structs for file transfer 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+struct FileRequest(String);
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub(crate) struct FileResponse(Vec<u8>);

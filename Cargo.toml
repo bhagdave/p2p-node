@@ -6,11 +6,12 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+serde = { version = "1.0", features = ["derive"] }
 async-std = { version = "1.12", features = ["attributes"] }
 async-trait = "0.1"
 env_logger = "0.10.0"
 futures = "0.3.28"
-libp2p = { version = "0.52.1", features = ["async-std", "identify", "mdns", "gossipsub", "kad", "request-response", "macros", "noise", "ping", "rendezvous", "tcp", "tokio", "yamux"] }
+libp2p = { version = "0.52.1", features = ["async-std", "identify", "cbor", "mdns", "gossipsub", "kad", "request-response", "macros", "noise", "ping", "rendezvous", "tcp", "tokio", "yamux"] }
 libp2p-quic = "0.6.1"
 log = "0.4"
 tokio = { version = "1.29", features = [ "full" ] }
