@@ -4,6 +4,7 @@
  *
 */
 use futures::StreamExt;
+use futures::channel::{oneshot};
 use libp2p::{
     core::transport::upgrade::Version,
     gossipsub, identify, identity, mdns, noise, ping, rendezvous,
@@ -99,6 +100,8 @@ async fn main() {
         local_peer_id,
     )
     .build();
+    // set kadmelia into server mode
+    swarm.behaviour_mut().kad.set_mode(Some(kad::Mode::Server));
 
     // Listen on specific port for incoming connections
     let _ = swarm.listen_on("/ip4/0.0.0.0/tcp/62649".parse().unwrap());
@@ -187,6 +190,13 @@ async fn main() {
                         String::from_utf8_lossy(&message.data),
                     );
                 }
+                SwarmEvent::Behaviour(MyBehaviourEvent::Kad(KademliaEvent::OutboundQueryProgressed {
+                    id,
+                    result: QueryResult::StartProviding(_),
+                    ..
+                })) => {
+                    log::info!("Providing started for {:?}", id);
+                    }
                 other => {
                     log::info!("Swarm event: {:?}", other);
                 }
