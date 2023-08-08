@@ -196,7 +196,21 @@ async fn main() {
                     ..
                 })) => {
                     log::info!("Providing started for {:?}", id);
-                    }
+                }
+                SwarmEvent::Behaviour(MyBehaviourEvent::Kad(KademliaEvent::OutboundQueryProgressed {
+                    id,
+                    result: QueryResult::GetProviders(Ok(GetProvidersOk::FoundProviders { providers, .. })),
+                    ..
+                })) => {
+                    log::info!("Found providers for {:?}: {:?}", id, providers);
+                }
+                SwarmEvent::Behaviour(MyBehaviourEvent::Kad(KademliaEvent::OutboundQueryProgressed {
+                    result:
+                        QueryResult::GetProviders(Ok(GetProvidersOk::FinishedWithNoAdditionalRecord{ .. })),
+                        ..
+                })) => {
+                    log::info!("Finished get providers query");
+                }
                 other => {
                     log::info!("Swarm event: {:?}", other);
                 }
