@@ -1,19 +1,14 @@
-/*
- * Main file for p2p rendezvous server
- *
- *
-*/
 use futures::StreamExt;
 use libp2p::{
     core::transport::upgrade::Version,
     gossipsub, identify, identity, mdns, noise, ping, rendezvous,
-    swarm::{keep_alive, NetworkBehaviour, SwarmBuilder, SwarmEvent},
-    tcp, yamux, PeerId, Transport,
+    swarm::{NetworkBehaviour, SwarmEvent, Config as SwarmConfig},
+    tcp, yamux, PeerId, Transport, Swarm,
 };
-use libp2p_quic as quic;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::time::Duration;
+use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::sync::mpsc;
 
 #[tokio::main]
@@ -49,7 +44,7 @@ async fn main() {
     .expect("Correct config");
 
     // setup mdns
-    let mdns = mdns::async_io::Behaviour::new(mdns::Config::default(), local_peer_id)
+    let mdns = mdns::tokio::Behaviour::new(mdns::Config::default(), local_peer_id)
         .expect("Correct config");
 
     // Setup gossipsub topic
@@ -57,7 +52,7 @@ async fn main() {
     gossipsub.subscribe(&topic).unwrap();
 
     // setup tcp transport
-    let tcp_transport = tcp::tokio::Transport::default()
+    let tcp_transport = tcp::tokio::Transport::new(tcp::Config::default().nodelay(true))
         .upgrade(Version::V1Lazy)
         .authenticate(noise::Config::new(&local_key).unwrap())
         .multiplex(yamux::Config::default())
@@ -65,7 +60,7 @@ async fn main() {
         .boxed();
 
     // Create the swarm
-    let mut swarm = SwarmBuilder::with_tokio_executor(
+    let mut swarm = Swarm::new(
         tcp_transport,
         MyBehaviour {
             identify: identify::Behaviour::new(identify::Config::new(
@@ -74,45 +69,44 @@ async fn main() {
             )),
             rendezvous: rendezvous::server::Behaviour::new(rendezvous::server::Config::default()),
             ping: ping::Behaviour::new(ping::Config::new().with_interval(Duration::from_secs(1))),
-            keep_alive: keep_alive::Behaviour,
             gossipsub,
             mdns,
         },
         local_peer_id,
-    )
-    .build();
+        SwarmConfig::with_tokio_executor(),
+    );
 
     // Listen on specific port for incoming connections
     let _ = swarm.listen_on("/ip4/0.0.0.0/tcp/62649".parse().unwrap());
     log::info!("Listening on port 62649");
 
-    let mut stdin = InteractiveStdin::new();
+    let (tx, mut rx) = mpsc::channel(64);
+    
+    // Spawn stdin handler
+    tokio::spawn(async move {
+        let mut stdin = BufReader::new(tokio::io::stdin()).lines();
+        while let Ok(Some(line)) = stdin.next_line().await {
+            if tx.send(line).await.is_err() {
+                break;
+            }
+        }
+    });
 
     println!("Add a message on the command line and press enter to send it to all peers");
 
     // Lets catch the swarm events
     loop {
         tokio::select! {
-            line = stdin.next_line() => {
-                log::info!("Publishing line: {:?}", line);
-                match line {
-                    Ok(line) => {
-                        match line {
-                            Some(line)  => {
-                                if let Err(e) = swarm.behaviour_mut().gossipsub.publish(topic.clone(), line.as_bytes()) {
-                                    log::error!("Failed to publish message: {:?}", e);
-                                }
-                            }
-                            None => {
-                                log::error!("Failed to read line");
-                            }
-                        }
+            line = rx.recv() => {
+                if let Some(line) = line {
+                    log::info!("Publishing line: {:?}", line);
+                    if let Err(e) = swarm.behaviour_mut().gossipsub.publish(topic.clone(), line.as_bytes()) {
+                        log::error!("Failed to publish message: {:?}", e);
                     }
-                    Err(e) => {
-                        log::error!("Failed to read line: {:?}", e);
-                    }
+                } else {
+                    break;
                 }
-            },
+            }
             event = swarm.select_next_some() => match event {
                 SwarmEvent::ConnectionEstablished { peer_id, .. } => {
                     log::info!("Connection established with {}", peer_id);
@@ -170,40 +164,58 @@ async fn main() {
                     );
                 }
                 other => {
-                    log::info!("Swarm event: {:?}", other);
+                    log::debug!("Unhandled swarm event: {:?}", other);
                 }
-            } 
+            }
         }
     }
 }
 
 #[derive(NetworkBehaviour)]
+#[behaviour(out_event = "MyBehaviourEvent", event_process = true)]
 struct MyBehaviour {
     identify: identify::Behaviour,
     rendezvous: rendezvous::server::Behaviour,
     ping: ping::Behaviour,
-    keep_alive: keep_alive::Behaviour,
     gossipsub: gossipsub::Behaviour,
-    mdns: mdns::async_io::Behaviour,
+    mdns: mdns::tokio::Behaviour,
 }
 
-struct InteractiveStdin {
-    chan: mpsc::Receiver<std::io::Result<String>>,
+#[derive(Debug)]
+enum MyBehaviourEvent {
+    Identify(identify::Event),
+    Rendezvous(rendezvous::server::Event),
+    Ping(ping::Event),
+    Gossipsub(gossipsub::Event),
+    Mdns(mdns::Event),
 }
 
-impl InteractiveStdin {
-    fn new() -> Self {
-        let (send, recv) = mpsc::channel(16);
-        std::thread::spawn(move || {
-            for line in std::io::stdin().lines() {
-                if send.blocking_send(line).is_err() {
-                    return;
-                }
-            }
-        });
-        Self { chan: recv }
+impl From<identify::Event> for MyBehaviourEvent {
+    fn from(event: identify::Event) -> Self {
+        MyBehaviourEvent::Identify(event)
     }
-    async fn next_line(&mut self) -> std::io::Result<Option<String>> {
-        self.chan.recv().await.transpose()
+}
+
+impl From<rendezvous::server::Event> for MyBehaviourEvent {
+    fn from(event: rendezvous::server::Event) -> Self {
+        MyBehaviourEvent::Rendezvous(event)
+    }
+}
+
+impl From<ping::Event> for MyBehaviourEvent {
+    fn from(event: ping::Event) -> Self {
+        MyBehaviourEvent::Ping(event)
+    }
+}
+
+impl From<gossipsub::Event> for MyBehaviourEvent {
+    fn from(event: gossipsub::Event) -> Self {
+        MyBehaviourEvent::Gossipsub(event)
+    }
+}
+
+impl From<mdns::Event> for MyBehaviourEvent {
+    fn from(event: mdns::Event) -> Self {
+        MyBehaviourEvent::Mdns(event)
     }
 }
