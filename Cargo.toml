@@ -9,7 +9,7 @@ edition = "2021"
 
 
 [dependencies]
-libp2p = { version = "0.53", features = [
+libp2p = { version = "0.55.0", features = [
     "identify",
     "ping",
     "noise",
